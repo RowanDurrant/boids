@@ -1,9 +1,11 @@
+library(animation)
+
 #paramaters -------------------------------------------------------------------------------
 
-width = 150
-height = 150
+width = 400
+height = 400
 
-numBoids = 100
+numBoids = 50
 visualRange = 75
 
 #initialBoids function --------------------------------------------------------------------
@@ -30,7 +32,7 @@ distanceBoids = function(boid1, boid2){
 
 keepWithinBounds = function(boids, width, height){
 	turnFactor = 1
-	for(j in nrow(boids)){
+	for(j in 1:nrow(boids)){
 		if(boids$x[j] < width){ boids$dx[j] = boids$dx[j] + turnFactor }
 		if(boids$x[j] > 0){boids$dx[j] = boids$dx[j] - turnFactor }
 		if(boids$y[j] < height){ boids$dy[j] = boids$dy[j] + turnFactor }
@@ -48,23 +50,23 @@ flockToCenter = function(boids, visualRange){
 	centerY = 0
 	numNeighbours = 0
 
-	for(b in boids){
-		for(c in boids){
+	for(b in 1:nrow(boids)){
+		for(c in 1:nrow(boids)){
 			if(distanceBoids(boids[b,], boids[c,]) < visualRange){
 				centerX = centerX + boids$x[c]
 				centerY = centerY + boids$y[c]
 				numNeighbours = numNeighbours + 1
 				}
 			}
-		if(numNeigbours > 0){
+		if(numNeighbours > 0){
 			centerX = centerX / numNeighbours
 			centerY = centerY / numNeighbours
 		
-			boid$dx[b] = boid$dx[b] + ((centerX - boid$x[b]) * centeringFactor)
-			boid$dy[b] = boid$dy[b] + ((centerY - boid$y[b]) * centeringFactor)
+			boids$dx[b] = boids$dx[b] + ((centerX - boids$x[b]) * centeringFactor)
+			boids$dy[b] = boids$dy[b] + ((centerY - boids$y[b]) * centeringFactor)
 			}
 		}
-	}
+	
 	return(boids)
 	}
 	
@@ -76,8 +78,8 @@ avoidOthers = function(boids){
 	moveX = 0
 	moveY = 0
 
-	for(d in boids){
-		for(e in boids){
+	for(d in 1:nrow(boids)){
+		for(e in 1:nrow(boids)){
 			if(boids[e,] != boids[d,]){
 				if(distanceBoids(boids[d,], boids[e,]) < minDistance){
 					moveX = moveX + boids$x[d] - boids$x[e]
@@ -97,11 +99,12 @@ matchVelocity = function(boids, visualRange){
 	avgDX = 0
 	avgDY = 0
 	numNeighbours = 0
-
-	for(otherBoid in Boids){
-		if(distanceBoids(boid, otherBoid) < visualRange){
-			avgDX = avgDx + otherBoid$dx
-			avgDY = avgDY + otherBoid$dy
+	
+for(f in 1:nrow(boids)){
+	for(g in 1:nrow(boids)){
+		if(distanceBoids(boids[f,], boids[g,]) < visualRange){
+			avgDX = avgDX + boids$dx[g]
+			avgDY = avgDY + boids$dy[g]
 			numNeighbours = numNeighbours + 1
 			}
 		}
@@ -109,20 +112,24 @@ matchVelocity = function(boids, visualRange){
 		avgDX = avgDX / numNeighbours
 		avgDY = avgDY / numNeighbours
 
-		boid$dx = boid$dx + ((avgDX - boid$dx)*matchingFactor)
-		boid$dy = boid$dy + ((avgDY - boid$dy)*matchingFactor)
+		boids$dx[f] = boids$dx[f] + ((avgDX - boids$dx[f])*matchingFactor)
+		boids$dy[f] = boids$dy[f] + ((avgDY - boids$dy[f])*matchingFactor)
 		}
+	}
 	return(boids)
 	}
 
 #speed limit ---------------------------------------------------------------------------
 
-limitSpeed = function(boid){
+limitSpeed = function(boids){
 	speedLimit = 15
-	speed = sqrt(boid$dx * (boid$dx + boid$dy) * boid$dy)
-	if(speed > speedLimit){	
-		boid$dx = (boid$dx / speed) * speedLimit
-		boid$dy = (boid$dy / speed) * speedLimit
+	for(h in 1:nrow(boids)){
+		speed = sqrt(abs(boids$dx[h] * (boids$dx[h] + boids$dy[h]) * boids$dy[h]))
+		if(speedLimit <= speed){	
+			boids$dx[h] = (boids$dx[h] / speed) * speedLimit
+			boids$dy[h] = (boids$dy[h] / speed) * speedLimit
+			}
+		else{}
 		}
 	return(boids)
 	}
@@ -130,13 +137,13 @@ limitSpeed = function(boid){
 #main loop function -------------------------------------------------------------------------------------
 
 mainLoop = function(boids){
-	boids = flyTowardsCenter(boids)
+	boids = flockToCenter(boids, visualRange)
 	boids = avoidOthers(boids)
-	boids = matchVelocity(boids)
+	boids = matchVelocity(boids, visualRange)
 	boids = limitSpeed(boids)
-	boids = keepWithinBounds(boids)
+	boids = keepWithinBounds(boids, width, height)
 
-	for(a in nrow(boids)){
+	for(a in 1:nrow(boids)){
 		boids$x[a] = boids$x[a] + boids$dx[a]
 		boids$y[a] = boids$y[a] + boids$dy[a]
 		}
@@ -147,8 +154,12 @@ mainLoop = function(boids){
 # SIM -------------------------------------------------------------------------------------
 
 boids = initBoids(numBoids, width, height)
+ani.options(interval=0.05)
 
-for(t in 1:100){
-	mainLoop(boids)
-	plot(boids$y ~ boids$x)
+saveGIF({
+    for (t in 1:200){ 
+	boids = mainLoop(boids)
+	print(paste("Time step", t, "done"))
+	plot(boids$y ~ boids$x, xlim = c(-200,width), ylim = c(-200, height), pch = 16)
 	}
+})
