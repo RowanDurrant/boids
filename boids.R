@@ -20,6 +20,20 @@ initBoids = function(numBoids, width, height){
 		}
 	return(boids)
 	}
+
+
+#initialFalcs function --------------------------------------------------------------------
+
+initFalcs = function(numBoids, width, height){
+	boids = setNames(data.frame(matrix(ncol = 4, nrow = numBoids)), c("x", "y", "dx", "dy"))
+	for(i in 1:numBoids){
+		boids$x[i] = -1150
+		boids$y[i] = 1050
+		boids$dx[i] = 35
+		boids$dy[i] = -25
+		}
+	return(boids)
+	}
 		
 #distance between boids -------------------------------------------------------------------
 
@@ -31,7 +45,7 @@ distanceBoids = function(boid1, boid2){
 #Keep within boundaries--------------------------------------------------------------------
 
 keepWithinBounds = function(boids, width, height){
-	turnFactor = 1
+	turnFactor = 3
 	for(j in 1:nrow(boids)){
 		if(boids$x[j] < width){ boids$dx[j] = boids$dx[j] + turnFactor }
 		if(boids$x[j] > 0){boids$dx[j] = boids$dx[j] - turnFactor }
@@ -73,7 +87,7 @@ flockToCenter = function(boids, visualRange){
 #avoid other boids -------------------------------------------------------------------------
 
 avoidOthers = function(boids){
-	minDistance = 20
+	minDistance = 15
 	avoidFactor = 0.05
 	moveX = 0
 	moveY = 0
@@ -134,32 +148,67 @@ limitSpeed = function(boids){
 	return(boids)
 	}
 
+#avoid predator -------------------------------------------------------------------------
+
+avoidPredator = function(boids, falcs){
+	minDistance = 125
+	avoidFactor = 0.1
+	moveX = 0
+	moveY = 0
+
+	for(d in 1:nrow(boids)){
+		for(e in 1:nrow(falcs)){
+			if(distanceBoids(boids[d,], falcs[e,]) < minDistance){
+				moveX = moveX + boids$x[d] - falcs$x[e]
+				moveY = moveY + boids$y[d] - falcs$y[e]
+				}
+			}
+		boids$dx[d] = boids$dx[d] + (moveX * avoidFactor)
+		boids$dy[d] = boids$dy[d] + (moveY * avoidFactor)
+	}
+	return(boids)
+	}
+
 #main loop function -------------------------------------------------------------------------------------
 
-mainLoop = function(boids){
+mainLoop = function(boids, falcs, visualRange, width, height){
 	boids = flockToCenter(boids, visualRange)
 	boids = avoidOthers(boids)
 	boids = matchVelocity(boids, visualRange)
 	boids = limitSpeed(boids)
 	boids = keepWithinBounds(boids, width, height)
+	boids = avoidPredator(boids, falcs)
 
 	for(a in 1:nrow(boids)){
 		boids$x[a] = boids$x[a] + boids$dx[a]
 		boids$y[a] = boids$y[a] + boids$dy[a]
 		}
+
 	return(boids)
 	}
 
+#falc loop --------------------------------------------------------------------------------
+
+falcLoop = function(falcs){
+	for(m in 1:nrow(falcs)){
+		falcs$x[m] = falcs$x[m] + falcs$dx[m]
+		falcs$y[m] = falcs$y[m] + falcs$dy[m]
+		}
+	return(falcs)
+	}
 
 # SIM -------------------------------------------------------------------------------------
-
+falcs = initFalcs(1, width, height)
 boids = initBoids(numBoids, width, height)
 ani.options(interval=0.05)
 
 saveGIF({
-    for (t in 1:200){ 
-	boids = mainLoop(boids)
+    for (t in 1:100){ 
+	falcs = falcLoop(falcs)
+	boids = mainLoop(boids, falcs, visualRange, width, height)
 	print(paste("Time step", t, "done"))
-	plot(boids$y ~ boids$x, xlim = c(-200,width), ylim = c(-200, height), pch = 16)
+
+	plot(boids$y ~ boids$x, xlim = c(-200,width+100), ylim = c(-200, height+100))
+	points(falcs$y ~ falcs$x, cex = 2, col = "red", pch = 16)
 	}
 })
