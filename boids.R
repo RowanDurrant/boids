@@ -5,7 +5,7 @@ library(animation)
 width = 400
 height = 400
 
-numBoids = 50
+numBoids = 100
 visualRange = 75
 
 #initialBoids function --------------------------------------------------------------------
