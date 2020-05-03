@@ -5,8 +5,9 @@ library(animation)
 width = 400
 height = 400
 
-numBoids = 100
-visualRange = 75
+numBoids = 30
+visualRange = 50
+falcVisualRange = 150
 
 #initialBoids function --------------------------------------------------------------------
 
@@ -27,10 +28,10 @@ initBoids = function(numBoids, width, height){
 initFalcs = function(numBoids, width, height){
 	boids = setNames(data.frame(matrix(ncol = 4, nrow = numBoids)), c("x", "y", "dx", "dy"))
 	for(i in 1:numBoids){
-		boids$x[i] = -1150
-		boids$y[i] = 1050
-		boids$dx[i] = 35
-		boids$dy[i] = -25
+		boids$x[i] = -150
+		boids$y[i] = 200
+		boids$dx[i] = 20
+		boids$dy[i] = -10
 		}
 	return(boids)
 	}
@@ -45,7 +46,7 @@ distanceBoids = function(boid1, boid2){
 #Keep within boundaries--------------------------------------------------------------------
 
 keepWithinBounds = function(boids, width, height){
-	turnFactor = 3
+	turnFactor = 1
 	for(j in 1:nrow(boids)){
 		if(boids$x[j] < width){ boids$dx[j] = boids$dx[j] + turnFactor }
 		if(boids$x[j] > 0){boids$dx[j] = boids$dx[j] - turnFactor }
@@ -135,8 +136,7 @@ for(f in 1:nrow(boids)){
 
 #speed limit ---------------------------------------------------------------------------
 
-limitSpeed = function(boids){
-	speedLimit = 15
+limitSpeed = function(boids, speedLimit){
 	for(h in 1:nrow(boids)){
 		speed = sqrt(abs(boids$dx[h] * (boids$dx[h] + boids$dy[h]) * boids$dy[h]))
 		if(speedLimit <= speed){	
@@ -151,7 +151,7 @@ limitSpeed = function(boids){
 #avoid predator -------------------------------------------------------------------------
 
 avoidPredator = function(boids, falcs){
-	minDistance = 125
+	minDistance = 100
 	avoidFactor = 0.1
 	moveX = 0
 	moveY = 0
@@ -169,15 +169,45 @@ avoidPredator = function(boids, falcs){
 	return(boids)
 	}
 
+#falc chase boids --------------------------------------------------------------------------
+
+falcChase = function(falcs, boids, falcVisualRange){
+	centeringFactor = 0.1
+	centerX = 0
+	centerY = 0
+	numPrey = 0
+
+	for(b in 1:nrow(falcs)){
+		for(c in 1:nrow(boids)){
+			if(distanceBoids(falcs[b,], boids[c,]) < falcVisualRange){
+				centerX = centerX + boids$x[c]
+				centerY = centerY + boids$y[c]
+				numPrey = numPrey + 1
+				}
+			}
+		if(numPrey > 0){
+			centerX = centerX / numPrey
+			centerY = centerY / numPrey
+		
+			falcs$dx[b] = falcs$dx[b] + ((centerX - falcs$x[b]) * centeringFactor)
+			falcs$dy[b] = falcs$dy[b] + ((centerY - falcs$y[b]) * centeringFactor)
+			}
+		}
+	
+	return(falcs)
+	}
+	
+
 #main loop function -------------------------------------------------------------------------------------
 
 mainLoop = function(boids, falcs, visualRange, width, height){
-	boids = flockToCenter(boids, visualRange)
-	boids = avoidOthers(boids)
+
 	boids = matchVelocity(boids, visualRange)
-	boids = limitSpeed(boids)
+	boids = flockToCenter(boids, visualRange)
 	boids = keepWithinBounds(boids, width, height)
+	boids = avoidOthers(boids)
 	boids = avoidPredator(boids, falcs)
+	boids = limitSpeed(boids, 15)
 
 	for(a in 1:nrow(boids)){
 		boids$x[a] = boids$x[a] + boids$dx[a]
@@ -189,11 +219,14 @@ mainLoop = function(boids, falcs, visualRange, width, height){
 
 #falc loop --------------------------------------------------------------------------------
 
-falcLoop = function(falcs){
-	for(m in 1:nrow(falcs)){
-		falcs$x[m] = falcs$x[m] + falcs$dx[m]
-		falcs$y[m] = falcs$y[m] + falcs$dy[m]
+falcLoop = function(falcs, boids, falcVisualRange){
+	falcs = falcChase(falcs, boids, falcVisualRange)
+	falcs = limitSpeed(falcs, 15)
+	for(n in 1:nrow(falcs)){
+		falcs$x[n] = falcs$x[n] + falcs$dx[n]
+		falcs$y[n] = falcs$y[n] + falcs$dy[n]
 		}
+
 	return(falcs)
 	}
 
@@ -203,12 +236,12 @@ boids = initBoids(numBoids, width, height)
 ani.options(interval=0.05)
 
 saveGIF({
-    for (t in 1:100){ 
-	falcs = falcLoop(falcs)
+    for (t in 1:200){ 
+	falcs = falcLoop(falcs, boids, falcVisualRange)
 	boids = mainLoop(boids, falcs, visualRange, width, height)
 	print(paste("Time step", t, "done"))
 
-	plot(boids$y ~ boids$x, xlim = c(-200,width+100), ylim = c(-200, height+100))
-	points(falcs$y ~ falcs$x, cex = 2, col = "red", pch = 16)
+	plot(boids$y ~ boids$x, xlim = c(-100,width+100), ylim = c(-100, height+100))
+	points(falcs$y ~ falcs$x, col = "red", pch = 16)
 	}
 })
